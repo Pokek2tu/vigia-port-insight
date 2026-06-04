@@ -2,6 +2,9 @@
 @source "../src";
 @import "tw-animate-css";
 
+@source inline("{bg,text,border}-{success,warning,danger,cyan,primary}{,/5,/10,/15,/20,/30,/40,/60,/80}");
+@source inline("{from,to}-{cyan,primary}");
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
