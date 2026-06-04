@@ -66,8 +66,8 @@ export function CameraGrid({ snap, running = false }: { snap: ScenarioSnapshot; 
                 <div className="absolute left-1.5 top-1.5 flex items-center gap-1 font-mono text-[9px] text-cyan">
                   <span className={`h-1.5 w-1.5 rounded-full bg-${meta.color} flicker`} /> REC · {cam.id}
                 </div>
-                <div className="absolute right-1.5 top-1.5 font-mono text-[9px] text-cyan/70">
-                  {new Date().toLocaleTimeString("es-PE", { hour12: false })}
+                <div className={`absolute right-1.5 top-1.5 font-mono text-[9px] text-cyan/70 ${running ? "flicker" : ""}`}>
+                  <LiveClock />
                 </div>
                 <div className={`absolute bottom-1.5 right-1.5 rounded bg-${meta.color}/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-${meta.color}`}>
                   {meta.label}
