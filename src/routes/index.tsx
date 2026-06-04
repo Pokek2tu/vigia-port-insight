@@ -10,6 +10,7 @@ import { SimulatorPanel } from "@/components/vigia/SimulatorPanel";
 import { AlertsAndReports } from "@/components/vigia/AlertsAndReports";
 import { FutureRiskBanner } from "@/components/vigia/FutureRiskBanner";
 import { SCENARIOS, type ScenarioSnapshot } from "@/lib/scenarios";
+import { interpolate } from "@/lib/interpolate";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,53 +26,76 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const [selected, setSelected] = useState<ScenarioSnapshot["id"]>("normal");
-  const [active, setActive] = useState<ScenarioSnapshot["id"]>("normal");
+  const [snap, setSnap] = useState<ScenarioSnapshot>(SCENARIOS.normal);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [futureRisk, setFutureRisk] = useState(SCENARIOS.normal.kpis.futureRisk);
-  const timerRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
 
-  const snap = SCENARIOS[active];
-
-  // Animate future risk indicator continuously
+  // Continuous live jitter on future risk to convey real-time feel
   useEffect(() => {
     const target = snap.kpis.futureRisk;
     const id = window.setInterval(() => {
-      setFutureRisk((p) => {
-        const jitter = (Math.random() - 0.5) * 4;
-        const next = target + jitter;
-        return Math.max(0, Math.min(100, Math.round(next)));
-      });
-    }, 1500);
+      const jitter = (Math.random() - 0.5) * 5;
+      setFutureRisk(Math.max(0, Math.min(100, Math.round(target + jitter))));
+    }, 1200);
     return () => clearInterval(id);
   }, [snap.kpis.futureRisk]);
 
+  // Subtle ambient drift on KPIs when idle (not running) — feels "live"
+  useEffect(() => {
+    if (running) return;
+    const id = window.setInterval(() => {
+      setSnap((s) => ({
+        ...s,
+        kpis: {
+          ...s.kpis,
+          vehicles: s.kpis.vehicles + Math.floor((Math.random() - 0.4) * 12),
+          alerts: Math.max(0, s.kpis.alerts + (Math.random() > 0.85 ? 1 : 0)),
+        },
+        cameras: s.cameras.map((c) => ({
+          ...c,
+          vehicles: Math.max(0, c.vehicles + Math.floor((Math.random() - 0.5) * 3)),
+          persons: Math.max(0, c.persons + Math.floor((Math.random() - 0.5) * 2)),
+        })),
+      }));
+    }, 2000);
+    return () => clearInterval(id);
+  }, [running]);
+
   const run = () => {
     if (running) return;
+    const from = snap;
+    const to = SCENARIOS[selected];
     setRunning(true);
     setProgress(0);
     const start = performance.now();
-    const duration = 2200;
+    const duration = 3500;
+
     const step = () => {
-      const p = Math.min(100, ((performance.now() - start) / duration) * 100);
-      setProgress(p);
-      if (p < 100) {
-        timerRef.current = requestAnimationFrame(step);
+      const elapsed = performance.now() - start;
+      const t = Math.min(1, elapsed / duration);
+      setProgress(t * 100);
+      setSnap(interpolate(from, to, t));
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(step);
       } else {
-        setActive(selected);
+        setSnap(to);
         setRunning(false);
       }
     };
-    timerRef.current = requestAnimationFrame(step);
+    rafRef.current = requestAnimationFrame(step);
   };
 
   const reset = () => {
-    if (timerRef.current) cancelAnimationFrame(timerRef.current);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
     setRunning(false);
     setProgress(0);
-    setActive("normal");
     setSelected("normal");
+    setSnap(SCENARIOS.normal);
   };
+
+  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
 
   return (
     <div className="min-h-screen">
@@ -91,7 +115,7 @@ function Dashboard() {
           <PortMap snap={snap} />
           <AIPanel snap={snap} />
         </div>
-        <CameraGrid snap={snap} />
+        <CameraGrid snap={snap} running={running} />
         <EnvironmentPanel snap={snap} />
         <AlertsAndReports snap={snap} />
         <footer className="py-6 text-center text-[10px] uppercase tracking-widest text-muted-foreground">
