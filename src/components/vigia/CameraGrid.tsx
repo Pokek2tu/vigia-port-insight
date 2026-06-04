@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Camera, Users, Truck, Eye, Droplets, Wrench } from "lucide-react";
 import type { ScenarioSnapshot, CameraState } from "@/lib/scenarios";
 
@@ -7,7 +8,18 @@ const statusMeta = (s: CameraState["status"]) => ({
   fail: { color: "danger", label: "Mantenimiento" },
 }[s]);
 
-export function CameraGrid({ snap }: { snap: ScenarioSnapshot }) {
+function LiveClock() {
+  const [t, setT] = useState<string>("--:--:--");
+  useEffect(() => {
+    const tick = () => setT(new Date().toLocaleTimeString("es-PE", { hour12: false }));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <span suppressHydrationWarning>{t}</span>;
+}
+
+export function CameraGrid({ snap, running = false }: { snap: ScenarioSnapshot; running?: boolean }) {
   return (
     <div className="rounded-lg border border-border bg-panel shadow-panel">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -54,8 +66,8 @@ export function CameraGrid({ snap }: { snap: ScenarioSnapshot }) {
                 <div className="absolute left-1.5 top-1.5 flex items-center gap-1 font-mono text-[9px] text-cyan">
                   <span className={`h-1.5 w-1.5 rounded-full bg-${meta.color} flicker`} /> REC · {cam.id}
                 </div>
-                <div className="absolute right-1.5 top-1.5 font-mono text-[9px] text-cyan/70">
-                  {new Date().toLocaleTimeString("es-PE", { hour12: false })}
+                <div className={`absolute right-1.5 top-1.5 font-mono text-[9px] text-cyan/70 ${running ? "flicker" : ""}`}>
+                  <LiveClock />
                 </div>
                 <div className={`absolute bottom-1.5 right-1.5 rounded bg-${meta.color}/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-${meta.color}`}>
                   {meta.label}
